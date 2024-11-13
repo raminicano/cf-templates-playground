@@ -1,0 +1,181 @@
+Resources:
+  # VPC 생성
+  syjVPC:
+    Type: "AWS::EC2::VPC"
+    Properties:
+      CidrBlock: "10.0.0.0/16"
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: "Name"
+          Value: "cf-syj-test"
+
+  # 인터넷 게이트웨이 생성 및 VPC에 연결
+  syjInternetGateway:
+    Type: "AWS::EC2::InternetGateway"
+    Properties:
+      Tags:
+        - Key: "Name"
+          Value: "cf-syj-igw"
+
+  AttachGateway:
+    Type: "AWS::EC2::VPCGatewayAttachment"
+    Properties:
+      VpcId: !Ref syjVPC
+      InternetGatewayId: !Ref syjInternetGateway
+
+  # 퍼블릭 서브넷 생성 - us-east-1a
+  PublicSubnet1:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      VpcId: !Ref syjVPC
+      CidrBlock: "10.0.1.0/24"
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: "us-east-1a"
+      Tags:
+        - Key: "Name"
+          Value: "PublicSubnet-1a"
+
+  # 퍼블릭 서브넷 생성 - us-east-1b
+  PublicSubnet2:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      VpcId: !Ref syjVPC
+      CidrBlock: "10.0.2.0/24"
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: "us-east-1b"
+      Tags:
+        - Key: "Name"
+          Value: "PublicSubnet-1b"
+
+  # 프라이빗 서브넷 생성 - us-east-1a
+  PrivateSubnet1:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      VpcId: !Ref syjVPC
+      CidrBlock: "10.0.3.0/24"
+      AvailabilityZone: "us-east-1a"
+      Tags:
+        - Key: "Name"
+          Value: "PrivateSubnet1-1a"
+
+  # 프라이빗 서브넷 생성 - us-east-1a
+  PrivateSubnet3:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      VpcId: !Ref syjVPC
+      CidrBlock: "10.0.5.0/24"
+      AvailabilityZone: "us-east-1a"
+      Tags:
+        - Key: "Name"
+          Value: "PrivateSubnet3-1a"
+
+  # 프라이빗 서브넷 생성 - us-east-1b
+  PrivateSubnet2:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      VpcId: !Ref syjVPC
+      CidrBlock: "10.0.4.0/24"
+      AvailabilityZone: "us-east-1b"
+      Tags:
+        - Key: "Name"
+          Value: "PrivateSubnet4-1b"
+
+  # 프라이빗 서브넷 생성 - us-east-1b
+  PrivateSubnet4:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      VpcId: !Ref syjVPC
+      CidrBlock: "10.0.6.0/24"
+      AvailabilityZone: "us-east-1b"
+      Tags:
+        - Key: "Name"
+          Value: "PrivateSubnet6-1b"
+
+  # 퍼블릭 라우팅 테이블 생성
+  PublicRouteTable:
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId: !Ref syjVPC
+      Tags:
+        - Key: "Name"
+          Value: "syjPublicRouteTable"
+
+  # 퍼블릭 라우팅 테이블에 기본 라우트 추가 (0.0.0.0/0 - 인터넷으로의 경로)
+  PublicRoute:
+    Type: "AWS::EC2::Route"
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: "0.0.0.0/0"
+      GatewayId: !Ref syjInternetGateway
+
+  # 퍼블릭 서브넷을 퍼블릭 라우팅 테이블에 연결
+  PublicSubnet1RouteTableAssociation:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnet2RouteTableAssociation:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicRouteTable
+
+  # NAT 게이트웨이를 위한 퍼블릭 IP 생성
+  NatEIP:
+    Type: "AWS::EC2::EIP"
+    Properties:
+      Domain: "vpc"
+
+  # NAT 게이트웨이 생성 및 퍼블릭 서브넷에 배치
+  NatGateway:
+    Type: "AWS::EC2::NatGateway"
+    Properties:
+      AllocationId: !GetAtt NatEIP.AllocationId
+      SubnetId: !Ref PublicSubnet1
+      Tags:
+        - Key: "Name"
+          Value: "syjNatGateway"
+
+  # 프라이빗 라우팅 테이블 생성
+  PrivateRouteTable:
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId: !Ref syjVPC
+      Tags:
+        - Key: "Name"
+          Value: "syjPrivateRouteTable"
+
+  # 프라이빗 라우팅 테이블에 NAT 게이트웨이 경로 추가 (인터넷으로의 경로)
+  PrivateRoute:
+    Type: "AWS::EC2::Route"
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: "0.0.0.0/0"
+      NatGatewayId: !Ref NatGateway
+
+  # 프라이빗 서브넷을 프라이빗 라우팅 테이블에 연결
+  PrivateSubnet1RouteTableAssociation:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      SubnetId: !Ref PrivateSubnet1
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnet2RouteTableAssociation:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      SubnetId: !Ref PrivateSubnet2
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnet3RouteTableAssociation:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      SubnetId: !Ref PrivateSubnet3
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnet4RouteTableAssociation:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      SubnetId: !Ref PrivateSubnet4
+      RouteTableId: !Ref PrivateRouteTable
