@@ -1,0 +1,83 @@
+Parameters:
+  VPCId:
+    Type: AWS::EC2::VPC::Id
+    Description: "The ID of the VPC"
+  
+  PublicSubnet1Id:
+    Type: AWS::EC2::Subnet::Id
+    Description: "ID of the first public subnet"
+  
+  PublicSubnet2Id:
+    Type: AWS::EC2::Subnet::Id
+    Description: "ID of the second public subnet"
+  
+  ApplicationTargetGroupARN:
+    Type: String
+    Description: "The ARN of the existing Application Target Group"
+  
+  ApplicationSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: "The ID of the existing security group for the ALB"
+  
+  LaunchTemplateId:
+    Type: String
+    Description: "The ID of the existing EC2 Launch Template"
+
+Resources:
+  # ALB 생성
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: "application-load-balancer"
+      Subnets:
+        - !Ref PublicSubnet1Id
+        - !Ref PublicSubnet2Id
+      SecurityGroups:
+        - !Ref ApplicationSecurityGroupId
+      Scheme: internet-facing
+      Tags:
+        - Key: "Name"
+          Value: "syj-web-alb"
+
+  # ALB Listener 생성
+  ApplicationListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref ApplicationTargetGroupARN
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+
+  # Auto Scaling 그룹 생성
+  ApplicationAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: "syj-public-asg"
+      LaunchTemplate:
+        LaunchTemplateId: !Ref LaunchTemplateId
+        Version: !GetAtt LaunchTemplateId.LatestVersionNumber
+      MinSize: 1
+      MaxSize: 3
+      DesiredCapacity: 2
+      VPCZoneIdentifier:
+        - !Ref PublicSubnet1Id
+        - !Ref PublicSubnet2Id
+      TargetGroupARNs:
+        - !Ref ApplicationTargetGroupARN
+      Tags:
+        - Key: "Name"
+          Value: "syj"
+          PropagateAtLaunch: true
+
+  # Auto Scaling Policy
+  ApplicationScalingPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName: !Ref ApplicationAutoScalingGroup
+      PolicyType: TargetTrackingScaling
+      TargetTrackingConfiguration:
+        TargetValue: 50.0
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ASGAverageCPUUtilization
