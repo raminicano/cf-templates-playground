@@ -57,7 +57,7 @@ Resources:
       AutoScalingGroupName: "syj-public-asg"
       LaunchTemplate:
         LaunchTemplateId: !Ref LaunchTemplateId
-        Version: !GetAtt LaunchTemplateId.LatestVersionNumber
+        Version: "$Latest"
       MinSize: 1
       MaxSize: 3
       DesiredCapacity: 2
@@ -81,3 +81,4 @@ Resources:
         TargetValue: 50.0
         PredefinedMetricSpecification:
           PredefinedMetricType: ASGAverageCPUUtilization
+    DependsOn: ApplicationAutoScalingGroup
