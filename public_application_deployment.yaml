@@ -1,0 +1,10 @@
+template-file-path: public_application.yaml
+parameters:
+  VPCId: vpc-09fe78af29471985d
+  PublicSubnet1Id: subnet-096553bcf3ff83b23
+  PublicSubnet2Id: subnet-095cae47f46b9857f
+  ApplicationTargetGroupARN: >-
+    arn:aws:elasticloadbalancing:us-east-1:782621889128:targetgroup/syj-cf-public/55ed1a35c6e2ac38
+  ApplicationSecurityGroupId: sg-09a28c88a7d88986e
+  LaunchTemplateId: lt-0328b518a92ab38e5
+tags: {}
